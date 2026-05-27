@@ -84,7 +84,6 @@ services:
       - --path.procfs=/host/proc
       - --path.sysfs=/host/sys
       - --path.rootfs=/host
-      - --collector.textfile.directory=/var/lib/node_exporter/textfile_collector
       - --collector.filesystem.ignored-mount-points
       - ^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)
     volumes:
@@ -93,9 +92,6 @@ services:
       - /:/rootfs:ro
       - /:/host:ro,rslave
       - /dev:/host/dev:ro
-      - ./textfile_collector:/var/lib/node_exporter/textfile_collector:ro
-    depends_on:
-      - smart-exporter
     healthcheck:
       test: ["CMD", "wget", "-O", "/dev/null", "http://localhost:9100/metrics"]
       interval: 30s
@@ -152,28 +148,19 @@ services:
     mem_limit: 1g
     mem_reservation: 512m
 
-  smart-exporter:
-    container_name: monitoring-smart-exporter
-    image: alpine:latest
-    hostname: rpi-smart
+  smartctl-exporter:
+    container_name: monitoring-smartctl-exporter
+    image: quay.io/prometheuscommunity/smartctl-exporter:latest
+    hostname: rpi-smartctl
     restart: unless-stopped
     networks:
       - internal
-    volumes:
-      - /dev:/dev:ro
-      - ./textfile_collector:/textfile_collector
     privileged: true
-    command: >
-      sh -c "
-        apk add --no-cache bash wget jq smartmontools &&
-        wget -O /usr/local/bin/smartmon.sh https://raw.githubusercontent.com/micha37-martins/S.M.A.R.T-disk-monitoring-for-Prometheus/refs/heads/master/src/smartmon.sh &&
-        chmod +x /usr/local/bin/smartmon.sh &&
-        while true; do
-          LC_NUMERIC=C /usr/local/bin/smartmon.sh > /textfile_collector/smart_metrics.prom
-          echo \"SMART metrics updated at $(date)\"
-          sleep 300
-        done
-      "
+    user: root
+    expose:
+      - 9633
+    command:
+      - --smartctl.interval=120s
     labels:
       - "com.example.description=SMART Disk Monitoring"
       - "com.example.service=monitoring"
