@@ -150,7 +150,8 @@ services:
 
   smartctl-exporter:
     container_name: monitoring-smartctl-exporter
-    image: quay.io/prometheuscommunity/smartctl-exporter:latest
+    build:
+      context: ./smartctl-exporter
     hostname: rpi-smartctl
     restart: unless-stopped
     networks:
